@@ -19,8 +19,117 @@
 {% load compress %}
 {{ block.super }}
 {% compress js %}
-<script type="text/coffeescript">
+<script type="text/javascript">
 
+  // Auto update the service page for the status and the checks count and status
+  $(function(){
+
+    // Bootstrap the ajax method
+    function ajax(url, callback){
+
+      $.ajax(url)
+      .done(function(data, status, xhr){
+
+        if(status === "success") callback(data);
+        else console.log(data, status);
+
+      }).fail(function(xhr, status, error){
+
+        console.log(status, error);
+
+      });
+
+    }
+
+    // Update the overall label for the current service
+    function updateOverallLabel(line, service){
+
+      // Default values
+      var label = { 'class' : 'warning', 'value' : 'Disabled' };
+
+      // DOM element to update
+      var overallElement = line.find('td:nth-child(2) span');
+
+      var status = service['overall_status'];
+
+      if(service['alerts_enabled']){
+
+        label.class = (status === 'PASSING')?'success':'danger';
+
+        // Capitalize only on the first letter
+        label.value = status.charAt(0) + status.slice(1).toLowerCase();
+
+      }
+
+      overallElement.attr('class', 'label label-'+label.class).text(label.value);
+    }
+
+
+    // Update the status check
+    function updateStatusCheck(line, service, checks){
+
+      // DOM elements to update
+      var activeElement = line.find('td:nth-child(3) span');
+      var desactivatedElement = line.find('td:nth-child(4) span');
+
+      // Default values
+      var activeLabel = { 'count': 0, 'class': 'default' };
+      var desactivatedLabel = { 'count': 0, 'class': 'default' };
+
+      for(var i in checks){
+
+        // Considere only the checks for current service
+        if(service['status_checks'].indexOf(checks[i]['id']) !== -1){
+
+          // Update counts
+          if(checks[i]['active']) activeLabel.count ++;
+          else desactivatedLabel.count ++;
+
+        }
+
+      }
+
+      // If the active count is not 0, update the class
+      if(activeLabel.count > 0){
+        activeLabel.class = (service['overall_status'] === 'PASSING')?'success':'danger';
+      }
+
+      activeElement.attr('class', 'label label-'+activeLabel.class).text(activeLabel.count);
+      desactivatedElement.attr('class', 'label label-'+desactivatedLabel.class).text(desactivatedLabel.count);
+    }
+
+
+    // Parse the service
+    function parseServicesInformation(services){
+
+      for(var i in services){
+
+        var service = services[i];
+        var currentLine = $('tr[data-service-id='+service['id']+']');
+
+        updateOverallLabel(currentLine, service);
+
+        ajax("/api/status_checks/?format=json", function(checks){
+          updateStatusCheck(currentLine, service, checks);
+        });
+
+      }
+
+    }
+
+    // Update the services every 30 seconds
+    function updateServicesList(){
+
+      ajax("/api/services/?format=json", parseServicesInformation);
+      setTimeout(updateServicesList, 30*1000);
+
+    }
+
+    // Only start the update if there is at least one service
+    if($('tr[data-service-id]').length > 0){
+      updateServicesList();
+    }
+  });
 </script>
 {% endcompress %}
 {% endblock js %}

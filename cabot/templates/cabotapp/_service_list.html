@@ -19,7 +19,7 @@
       </thead>
       <tbody>
       {% for service in services %}
-        <tr class="{% if service.alerts_enabled %}enabled{% else %}warning{% endif %}">
+        <tr class="{% if service.alerts_enabled %}enabled{% else %}warning{% endif %}" data-service-id={{service.id}}>
           <td>
             <a href="{% url "service" pk=service.id %}" title="Alerts {% if service.alerts_enabled %}enabled{% else %}disabled{% endif %}">{{service.name}} </a>
           </td>
